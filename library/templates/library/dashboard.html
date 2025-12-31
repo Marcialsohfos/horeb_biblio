@@ -1,0 +1,118 @@
+{% extends 'library/base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card card-shadow h-100">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">📤 NOUVEAU PRÊT</h4>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Élève (Scanner ou Recherche)</label>
+                    <input list="eleves_list" id="matriculeInput" class="form-control form-control-lg" placeholder="Chercher un nom ou scanner...">
+                    <datalist id="eleves_list">
+                        {% for eleve in tous_eleves %}
+                        <option value="{{ eleve.matricule }}">{{ eleve.nom_complet }} ({{ eleve.classe }})</option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Livre (Scanner ou Recherche)</label>
+                    <input list="livres_list" id="isbnPratInput" class="form-control form-control-lg" placeholder="Chercher un titre ou scanner...">
+                    <datalist id="livres_list">
+                        {% for livre in tous_livres %}
+                        <option value="{{ livre.isbn }}">{{ livre.titre }} (Stock: {{ livre.stock_actuel }})</option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+
+                <button onclick="handlePrat()" class="btn btn-success w-100 btn-lg">VALIDER LA SORTIE</button>
+                <div id="msgPrat" class="alert mt-3 d-none"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card card-shadow h-100">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">📥 RETOUR RAPIDE</h4>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Livre à rendre</label>
+                    <input list="livres_list" id="isbnRetourInput" class="form-control form-control-lg" placeholder="Scanner ou taper titre...">
+                </div>
+                <button onclick="handleRetour()" class="btn btn-primary w-100 btn-lg">VALIDER LE RETOUR</button>
+                <div id="msgRetour" class="alert mt-3 d-none"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'library/dashboard_script_partial.html' %} 
+<script>
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function handlePrat() {
+        const mat = document.getElementById('matriculeInput').value;
+        const isbn = document.getElementById('isbnPratInput').value;
+        const alertBox = document.getElementById('msgPrat');
+
+        if(!mat || !isbn) { return; }
+
+        fetch('/api/emprunt/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ matricule: mat, isbn: isbn })
+        })
+        .then(res => res.json())
+        .then(data => {
+            alertBox.classList.remove('d-none', 'alert-success', 'alert-danger');
+            alertBox.classList.add(data.success ? 'alert-success' : 'alert-danger');
+            alertBox.innerText = data.message;
+            if(data.success) {
+                document.getElementById('isbnPratInput').value = '';
+                setTimeout(() => location.reload(), 1500);
+            }
+        });
+    }
+
+    function handleRetour() {
+        const isbn = document.getElementById('isbnRetourInput').value;
+        const alertBox = document.getElementById('msgRetour');
+
+        if(!isbn) { return; }
+
+        fetch('/api/retour/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ isbn: isbn })
+        })
+        .then(res => res.json())
+        .then(data => {
+            alertBox.classList.remove('d-none', 'alert-success', 'alert-danger');
+            alertBox.classList.add(data.success ? 'alert-success' : 'alert-danger');
+            alertBox.innerText = data.message;
+            if(data.success) {
+                document.getElementById('isbnRetourInput').value = '';
+                setTimeout(() => location.reload(), 1500);
+            }
+        });
+    }
+</script>
+{% endblock %}
